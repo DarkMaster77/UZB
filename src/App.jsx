@@ -322,7 +322,7 @@ function App() {
       recognitionActiveRef.current = true
       setIsRecording(true)
       setStatus('Слушаю узбекскую речь')
-      const recognitionLanguages = ['uz-UZ', 'uz', '']
+      const recognitionLanguages = ['uz-UZ', 'uz-Latn-UZ', 'uz-Cyrl-UZ', 'uz']
       const startRecognitionInstance = (languageIndex = 0) => {
         if (!recognitionActiveRef.current || recognitionSessionRef.current !== sessionId) return
         const recognition = new SpeechRecognition()
@@ -379,7 +379,7 @@ function App() {
             recognitionActiveRef.current = false
             setIsRecording(false)
             setStatus('Готов к записи')
-            setError('Этот браузер не поддерживает узбекский язык. Откройте приложение в последней версии Chrome или Edge.')
+            setError('Этот браузер не поддерживает узбекское распознавание. Откройте опубликованный сайт по HTTPS в последней версии Chrome или Edge.')
           } else if (event.error !== 'aborted' && event.error !== 'no-speech' && event.error !== 'network') {
             setError(`Не удалось распознать речь: ${event.error}`)
           }
