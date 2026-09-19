@@ -17,6 +17,7 @@ function App() {
   const [translationDirection, setTranslationDirection] = useState('ru-uz')
   const [translationScript, setTranslationScript] = useState('latin')
   const [isTranslating, setIsTranslating] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('uzb-theme') || 'dark')
   const [dictionary, setDictionary] = useState(new Set())
   const [russianDictionary, setRussianDictionary] = useState(new Set())
   const recognitionRef = useRef(null)
@@ -29,12 +30,12 @@ function App() {
   const languageRetryRef = useRef(false)
 
   const normalizeUzbek = (text) => {
-    const dictionary = { "o'zbek": 'oʻzbek', "g'ayrat": 'gʻayrat', "g'isht": 'gʻisht', "o'g'il": 'oʻgʻil', "to'g'ri": 'toʻgʻri', "bo'ladi": 'boʻladi', "so'rov": 'soʻrov', "ko'rsatma": 'koʻrsatma' }
+    const corrections = { "o'zbek": 'oʻzbek', "ozbek": 'oʻzbek', "g'ayrat": 'gʻayrat', "gayrat": 'gʻayrat', "g'isht": 'gʻisht', "gisht": 'gʻisht', "o'g'il": 'oʻgʻil', "ogil": 'oʻgʻil', "to'g'ri": 'toʻgʻri', "togri": 'toʻgʻri', "bo'ladi": 'boʻladi', "boladi": 'boʻladi', "so'rov": 'soʻrov', "sorov": 'soʻrov', "ko'rsatma": 'koʻrsatma', "korsatma": 'koʻrsatma', "o'zbekiston": 'Oʻzbekiston', "ozbekiston": 'Oʻzbekiston' }
     return text.replace(/\S+/g, (word) => {
       const leading = word.match(/^[^\p{L}\p{N}]*/u)?.[0] ?? ''
       const trailing = word.match(/[^\p{L}\p{N}]*$/u)?.[0] ?? ''
       const cleanWord = word.slice(leading.length, word.length - trailing.length)
-      const normalized = dictionary[cleanWord.toLowerCase()]
+      const normalized = corrections[cleanWord.toLowerCase()]
       return normalized ? `${leading}${normalized}${trailing}` : word
     })
   }
@@ -44,8 +45,10 @@ function App() {
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
 
+  const capitalizeSpeechStart = (text) => text.replace(/^(\s*[\p{L}])/u, (match) => match.toUpperCase())
+
   const appendSpeechText = (text) => {
-    const cleanText = cleanSpeechText(text)
+    const cleanText = normalizeUzbek(cleanSpeechText(text))
     if (!cleanText) return
     setTranscript((previous) => {
       const current = cleanSpeechText(previous)
@@ -60,7 +63,7 @@ function App() {
         }
       }
       const merged = [...currentWords, ...nextWords.slice(overlap)].join(' ').trim()
-      return normalizeUzbek(merged)
+      return capitalizeSpeechStart(normalizeUzbek(merged))
     })
   }
 
@@ -190,7 +193,7 @@ function App() {
 
   const saveTranscriptEdit = () => {
     const normalizedDraft = cleanSpeechText(transcriptDraft)
-    setTranscript(normalizeUzbek(script === 'cyrillic' ? cyrillicToLatin(normalizedDraft) : normalizedDraft))
+    setTranscript(capitalizeSpeechStart(normalizeUzbek(script === 'cyrillic' ? cyrillicToLatin(normalizedDraft) : normalizedDraft)))
     setIsEditingTranscript(false)
   }
 
@@ -330,7 +333,7 @@ function App() {
         recognition.lang = recognitionLanguages[languageIndex]
         recognition.continuous = true
         recognition.interimResults = true
-        recognition.maxAlternatives = 3
+        recognition.maxAlternatives = 1
         recognition.onstart = () => {
           if (recognitionSessionRef.current === sessionId) setStatus('Слушаю узбекскую речь')
         }
@@ -390,7 +393,7 @@ function App() {
           interimSpeechRef.current = ''
           setInterimTranscript('')
           if (recognitionActiveRef.current && recognitionSessionRef.current === sessionId) {
-            recognitionRestartTimerRef.current = window.setTimeout(startRecognitionInstance, 150)
+            recognitionRestartTimerRef.current = window.setTimeout(startRecognitionInstance, 80)
           }
         }
         recognitionRef.current = recognition
@@ -467,11 +470,17 @@ function App() {
       .catch(() => setError('Русский словарь не загрузился, но перевод доступен.'))
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('uzb-theme', theme)
+  }, [theme])
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell theme-${theme}`}>
+      <div className="ambient-field" aria-hidden="true"><span className="ambient-orb orb-one" /><span className="ambient-orb orb-two" /><span className="ambient-orb orb-three" /><span className="ambient-wave wave-one" /><span className="ambient-wave wave-two" /></div>
       <header className="topbar">
         <div className="brand-mark" aria-hidden="true">uz</div>
         <div><span className="eyebrow">Ovozli kundalik</span><strong>Ovoz → matn</strong></div>
+        <button className="theme-toggle" type="button" onClick={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}>{theme === 'dark' ? '☼' : '☾'}<span>{theme === 'dark' ? 'Светлая' : 'Тёмная'}</span></button>
         <span className="language-pill">UZ · UZBEK</span>
       </header>
       <nav className="mode-tabs" aria-label="Режим приложения">
@@ -479,7 +488,7 @@ function App() {
         <button className={view === 'translate' ? 'active' : ''} type="button" onClick={() => setView('translate')}><span>文</span> Переводчик</button>
       </nav>
       <section className="workspace">
-        <div className="intro"><p className="kicker">Tovushni ma'noga aylantiring</p><h1>Узбекская речь,<br /><em>точно записанная.</em></h1><p className="description">Говорите естественно. Браузер распознает речь на узбекском языке и подготовит чистый текст.</p></div>
+        <div className="intro"><p className="kicker">Tovushni ma'noga aylantiring</p><h1>Распознавание речи<br /><em>на узбекском языке<br />Просто нажми кнопку!</em></h1><p className="description">Говорите естественно. Браузер распознает речь на узбекском языке и подготовит чистый текст.</p></div>
         {view === 'voice' && <div className={`record-zone ${isRecording ? 'is-recording' : ''}`}>
           <div className="signal-ring ring-one" /><div className="signal-ring ring-two" />
           <button className="record-button" type="button" onClick={handleRecord} aria-label={isRecording ? 'Остановить запись' : 'Записать узбекскую речь'}><span className="record-icon">{isRecording ? '■' : '●'}</span><span>{isRecording ? 'Остановить' : 'Записать узбекскую речь'}</span></button>
