@@ -10,9 +10,9 @@ export default defineConfig({
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'microphone=(self)',
+      'Permissions-Policy': 'microphone=(self "https:")',
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.mymemory.translated.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'",
     },
   },
   preview: {
@@ -21,9 +21,9 @@ export default defineConfig({
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'microphone=(self)',
+      'Permissions-Policy': 'microphone=(self "https:")',
       'Cache-Control': 'no-store',
-      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.mymemory.translated.net; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; connect-src 'self' https: wss:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'",
     },
   },
 })

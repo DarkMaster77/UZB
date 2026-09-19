@@ -26,6 +26,7 @@ function App() {
   const recognitionTransitionRef = useRef(false)
   const pendingStartRef = useRef(false)
   const interimSpeechRef = useRef('')
+  const languageRetryRef = useRef(false)
 
   const normalizeUzbek = (text) => {
     const dictionary = { "o'zbek": 'oʻzbek', "g'ayrat": 'gʻayrat', "g'isht": 'gʻisht', "o'g'il": 'oʻgʻil', "to'g'ri": 'toʻgʻri', "bo'ladi": 'boʻladi', "so'rov": 'soʻrov', "ko'rsatma": 'koʻrsatma' }
@@ -268,6 +269,7 @@ function App() {
     if (recognitionTransitionRef.current) return
     recognitionTransitionRef.current = true
     recognitionActiveRef.current = false
+    languageRetryRef.current = false
     recognitionSessionRef.current += 1
     window.clearTimeout(recognitionRestartTimerRef.current)
     recognitionRestartTimerRef.current = null
@@ -292,6 +294,11 @@ function App() {
       pendingStartRef.current = true
       return
     }
+    const localHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+    if (!window.isSecureContext && !localHost) {
+      setError('Для распознавания речи откройте приложение по HTTPS и разрешите доступ к микрофону.')
+      return
+    }
     setError('')
     setCopied(false)
     setTranscript('')
@@ -299,6 +306,7 @@ function App() {
     interimSpeechRef.current = ''
     setIsEditingTranscript(false)
     recognitionActiveRef.current = false
+    languageRetryRef.current = false
     recognitionSessionRef.current += 1
     window.clearTimeout(recognitionRestartTimerRef.current)
     recognitionRestartTimerRef.current = null
@@ -314,11 +322,12 @@ function App() {
       recognitionActiveRef.current = true
       setIsRecording(true)
       setStatus('Слушаю узбекскую речь')
-      const startRecognitionInstance = () => {
+      const recognitionLanguages = ['uz-UZ', 'uz', '']
+      const startRecognitionInstance = (languageIndex = 0) => {
         if (!recognitionActiveRef.current || recognitionSessionRef.current !== sessionId) return
         const recognition = new SpeechRecognition()
         let lastInstanceFinal = ''
-        recognition.lang = 'uz-UZ'
+        recognition.lang = recognitionLanguages[languageIndex]
         recognition.continuous = true
         recognition.interimResults = true
         recognition.maxAlternatives = 3
@@ -351,16 +360,32 @@ function App() {
         }
         recognition.onerror = (event) => {
           if (recognitionSessionRef.current !== sessionId) return
-          if (['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'].includes(event.error)) {
+          if (event.error === 'language-not-supported' && languageIndex < recognitionLanguages.length - 1) {
+            recognitionActiveRef.current = false
+            languageRetryRef.current = true
+            try { recognition.stop() } catch { /* браузер уже отклонил язык */ }
+            recognitionActiveRef.current = true
+            setStatus('Подбираю совместимый режим распознавания')
+            recognitionRestartTimerRef.current = window.setTimeout(() => {
+              languageRetryRef.current = false
+              startRecognitionInstance(languageIndex + 1)
+            }, 100)
+          } else if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error)) {
             recognitionActiveRef.current = false
             setIsRecording(false)
             setStatus('Готов к записи')
             setError(`Распознавание остановлено: ${event.error}`)
+          } else if (event.error === 'language-not-supported') {
+            recognitionActiveRef.current = false
+            setIsRecording(false)
+            setStatus('Готов к записи')
+            setError('Этот браузер не поддерживает узбекский язык. Откройте приложение в последней версии Chrome или Edge.')
           } else if (event.error !== 'aborted' && event.error !== 'no-speech' && event.error !== 'network') {
             setError(`Не удалось распознать речь: ${event.error}`)
           }
         }
         recognition.onend = () => {
+          if (languageRetryRef.current) return
           appendSpeechText(interimSpeechRef.current)
           interimSpeechRef.current = ''
           setInterimTranscript('')
@@ -424,6 +449,7 @@ function App() {
   useEffect(() => () => {
     recognitionActiveRef.current = false
     pendingStartRef.current = false
+    languageRetryRef.current = false
     recognitionSessionRef.current += 1
     window.clearTimeout(recognitionRestartTimerRef.current)
     try { recognitionRef.current?.stop() } catch { /* компонент уже размонтируется */ }
